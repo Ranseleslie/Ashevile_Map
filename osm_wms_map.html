@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Map with Reverse Geocoding</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([35.5931, -82.5515], 12); // Set the initial view and zoom level
+
+        // Define Police Stations layer
+        var policeStationsLayer = L.tileLayer('https://geog585-aeld-115.s3.us-east-2.amazonaws.com/Lesson_5_Tiles/{z}/{x}/{y}.png', {
+            attribution: '&copy; Tiles hosted on AWS S3 - Police Stations',
+            tileSize: 256,
+            maxZoom: 18,
+            minZoom: 0
+        }).addTo(map); // Add Police Stations by default
+
+        // Define Hospitals layer
+        var hospitalLayer = L.tileLayer('https://geog585-aeld-115.s3.us-east-2.amazonaws.com/Lesson5_Hospital/{z}/{x}/{y}.png', {
+            attribution: '&copy; Tiles hosted on AWS S3 - Hospitals',
+            tileSize: 256,
+            maxZoom: 18,
+            minZoom: 0
+        }).addTo(map); // Add Hospitals by default
+
+        // Define Emergency Shelters layer
+        var emergencyShelterLayer = L.tileLayer('https://geog585-aeld-115.s3.us-east-2.amazonaws.com/Lesson5_EmergencyShelters/{z}/{x}/{y}.png', {
+            attribution: '&copy; Tiles hosted on AWS S3 - Emergency Shelters',
+            tileSize: 256,
+            maxZoom: 18,
+            minZoom: 0
+        }).addTo(map); // Add Emergency Shelters by default
+
+        // Layer Controls
+        var overlayMaps = {
+            "Police Stations": policeStationsLayer,
+            "Hospital Locations": hospitalLayer,
+            "Emergency Shelters": emergencyShelterLayer
+        };
+
+        L.control.layers(null, overlayMaps).addTo(map);
+
+        // Reverse Geocoding and Layer Identification
+        map.on('click', function (e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            // Check which layer is currently visible
+            var clickedType = 'Unknown Location'; // Default to unknown location type
+            if (map.hasLayer(emergencyShelterLayer)) {
+                clickedType = 'Emergency Shelter';
+            } else if (map.hasLayer(hospitalLayer)) {
+                clickedType = 'Hospital';
+            } else if (map.hasLayer(policeStationsLayer)) {
+                clickedType = 'Police Station';
+            }
+
+            // Reverse Geocoding using Nominatim
+            var geocodeUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+
+            fetch(geocodeUrl)
+                .then(response => response.json())
+                .then(data => {
+                    var address = data.address
+                        ? `${data.address.road || 'Unnamed Road'}, ${data.address.city || data.address.town || data.address.village || ''}, ${data.address.state || ''}, ${data.address.country || ''}`
+                        : 'No address found.';
+                    var popupContent = `<h4>${clickedType}</h4><p>${address}</p>`;
+
+                    L.popup()
+                        .setLatLng(e.latlng)
+                        .setContent(popupContent)
+                        .openOn(map);
+                })
+                .catch(error => {
+                    console.error('Error fetching reverse geocoding:', error);
+                    L.popup()
+                        .setLatLng(e.latlng)
+                        .setContent(`<h4>${clickedType}</h4><p>Error fetching address.</p>`)
+                        .openOn(map);
+                });
+        });
+    </script>
+</body>
+</html>
